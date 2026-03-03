@@ -197,6 +197,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ message: 'Logged out.' });
   });
+});
 
 // Email verification endpoint
 app.get('/verify', (req, res) => {
@@ -215,7 +216,6 @@ app.get('/verify', (req, res) => {
   verificationTokens.delete(token);
 
   res.send('Email verified. You can now log in.');
-});
 });
 
 // Example protected route (for future sell/buy/chat actions)
