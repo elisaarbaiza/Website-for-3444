@@ -108,7 +108,7 @@
                               <div class="input-group-prepend">
                                 <button class="btn btn-outline-black decrease" type="button">&minus;</button>
                               </div>
-                              <input type="text" class="form-control text-center quantity-amount" value="1" placeholder="" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                              <input type="number" class="form-control text-center quantity-amount" value="1" min="1" oninput="updateTotal(this)">
                               <div class="input-group-append">
                                 <button class="btn btn-outline-black increase" type="button">&plus;</button>
                               </div>
@@ -132,7 +132,7 @@
                               <div class="input-group-prepend">
                                 <button class="btn btn-outline-black decrease" type="button">&minus;</button>
                               </div>
-                              <input type="text" class="form-control text-center quantity-amount" value="1" placeholder="" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                              <input type="number" class="form-control text-center quantity-amount" value="1" min="1" oninput="updateTotal(this)">
                               <div class="input-group-append">
                                 <button class="btn btn-outline-black increase" type="button">&plus;</button>
                               </div>
@@ -309,6 +309,23 @@
 		<script src="js/bootstrap.bundle.min.js"></script>
 		<script src="js/tiny-slider.js"></script>
 		<script src="js/custom.js"></script>
+		<script>
+function updateTotal(input) {
+  const row = input.closest('tr');
+  const price = parseFloat(row.querySelector('td:nth-child(3)').textContent.replace('$', ''));
+  const quantity = parseInt(input.value) || 1;
+  const total = (price * quantity).toFixed(2);
+  row.querySelector('td:nth-child(5)').textContent = `$${total}`;
+
+  // Update cart subtotal and total
+  let subtotal = 0;
+  document.querySelectorAll('.site-blocks-table tbody tr').forEach(r => {
+    const t = parseFloat(r.querySelector('td:nth-child(5)').textContent.replace('$', '')) || 0;
+    subtotal += t;
+  });
+  document.querySelector('.col-md-6.text-right strong').textContent = `$${subtotal.toFixed(2)}`;
+}
+</script>
 	</body>
 
 </html>
