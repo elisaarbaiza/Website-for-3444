@@ -37,6 +37,12 @@
         <label for="loginPassword" class="form-label">Password</label>
         <input type="password" class="form-control" id="loginPassword" required>
       </div>
+      <div class="form-check mb-3">
+  <input class="form-check-input" type="checkbox" id="rememberMe">
+  <label class="form-check-label" for="rememberMe">
+    Remember me
+  </label>
+</div>
       <button type="submit" class="btn btn-primary w-100">Log in</button>
     </form>
     <p class="mt-3 text-center">
@@ -59,13 +65,14 @@
 
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
 
       try {
         const res = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password, rememberMe})
         });
 
         const data = await res.json();
