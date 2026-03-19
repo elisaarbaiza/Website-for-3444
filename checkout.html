@@ -80,16 +80,6 @@
 		    <div class="container">
 		      <div class="row mb-5">
 		        <div class="col-md-12">
-		          <div class="border p-4 rounded" role="alert">
-  UNT Students Only – Please login with your EUID
-  <form id="student-login" class="mt-3">
-    <div class="mb-3">
-      <label for="euid" class="text-black">EUID <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" id="euid" name="euid" placeholder="e12345678" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Login</button>
-  </form>
-</div>
 		        </div>
 		      </div>
 		      <div class="row">
@@ -213,18 +203,35 @@
 		                    </tr>
 		                  </tbody>
 		                </table>
-<div class="border p-3 mb-3">
-  <h3 class="h6 mb-0">Cash Payment</h3>
-  <div class="py-2">
-    <p class="mb-0">Bring exact cash to the meet-up location you selected above.</p>
-  </div>
-</div>
-
 <div class="border p-3 mb-5">
-  <h3 class="h6 mb-0">Cash App / Zelle</h3>
-  <div class="py-2">
-    <p class="mb-0">Send payment via Cash App or Zelle using your EUID as reference. Confirm payment with us before the meet-up.</p>
+  <h3 class="h6 mb-3">Select Payment Method</h3>
+
+  <!-- Cash -->
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="payment_method" id="cash" value="cash" required>
+    <label class="form-check-label" for="cash">
+      Cash (In Person)
+    </label>
   </div>
+
+  <!-- Cash App / Zelle -->
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="payment_method" id="digital" value="digital">
+    <label class="form-check-label" for="digital">
+      Cash App / Zelle
+    </label>
+  </div>
+
+  <!-- Other -->
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="payment_method" id="other" value="other">
+    <label class="form-check-label" for="other">
+      Other:
+    </label>
+  </div>
+
+  <!-- Other input field -->
+  <input type="text" id="other_payment" class="form-control mt-2" placeholder="Enter other payment method" style="display: none;">
 </div>
 
 		                <div class="form-group">
@@ -351,18 +358,18 @@
 		<script src="js/tiny-slider.js"></script>
 		<script src="js/custom.js"></script>
 
-		<script>
-document.getElementById('student-login').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const euid = document.getElementById('euid').value.trim().toLowerCase();
-  // New regex: 3 letters + 4 digits
-  if (!/^[a-z]{3}\d{4}$/.test(euid)) {
-    alert('Invalid EUID. Must be 3 letters followed by 4 digits.');
-    return;
-  }
-  // Hide login form and show checkout form
-  document.getElementById('student-login').style.display = 'none';
-  document.getElementById('checkout-form').style.display = 'block';
+<script>
+const paymentOptions = document.querySelectorAll('input[name="payment_method"]');
+const otherInput = document.getElementById('other_payment');
+
+paymentOptions.forEach(option => {
+  option.addEventListener('change', function() {
+    if (this.value === 'other') {
+      otherInput.style.display = 'block';
+    } else {
+      otherInput.style.display = 'none';
+    }
+  });
 });
 </script>
 	</body>
