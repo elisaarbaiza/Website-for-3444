@@ -7,6 +7,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1013.0",
     "bcryptjs": "^3.0.3",
     "express": "latest",
     "express-session": "^1.19.0",
