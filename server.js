@@ -417,8 +417,17 @@ app.post('/protected-example', requireLogin, (req, res) => {
   res.json({ message: `Hello, ${req.user.email}. You are authenticated.` });
 });
 
+// Pretty URLs: GET /login and GET /signup serve the HTML pages. (POST /login and POST /signup are JSON APIs above.)
+app.get('/login', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+app.get('/signup', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'signup.html'));
+});
+
 // Serve all static files (HTML, CSS, JS, images) from this folder
-app.use(express.static(__dirname));
+// Use main.html as the default document for "/" (Eagl'd homepage; former index.html).
+app.use(express.static(__dirname, { index: 'main.html' }));
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
