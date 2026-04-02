@@ -54,6 +54,14 @@
   <script>
     const ACCOUNTS_KEY = 'eagld_demo_accounts';
     const DEMO_USER_ID = '1';
+    const ALLOWED_NEXT_PAGES = new Set([
+      'shop.html',
+      'favorites.html',
+      'checkout.html',
+      'cart.html',
+      'sell.html',
+      'message.html'
+    ]);
 
     function getAccounts() {
       try {
@@ -61,6 +69,12 @@
       } catch (_err) {
         return {};
       }
+    }
+
+    function getPostLoginTarget() {
+      const nextParam = new URLSearchParams(window.location.search).get('next');
+      if (!nextParam) return 'main.html';
+      return ALLOWED_NEXT_PAGES.has(nextParam) ? nextParam : 'main.html';
     }
 
     const loginForm = document.getElementById('loginForm');
@@ -95,7 +109,7 @@
       loginAlert.className = 'alert alert-success';
       loginAlert.textContent = 'Logged in successfully. Redirecting...';
       setTimeout(() => {
-        window.location.href = 'index.html';
+        window.location.href = getPostLoginTarget();
       }, 700);
     });
 

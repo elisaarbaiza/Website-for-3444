@@ -20,8 +20,8 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/index_fb.html',
-      filename: 'index_fb.html',
+      template: './src/index.html',
+      filename: 'index.html',
     }),
   ],
 };
