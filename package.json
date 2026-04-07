@@ -2,9 +2,9 @@
   "name": "test-webiste-for-3444",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "main": "backend/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node backend/server.js"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1013.0",
