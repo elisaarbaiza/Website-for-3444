@@ -72,6 +72,7 @@ app.use(express.urlencoded({ extended: true }));
 // CORS to allow frontend from Amplify/localhost to call this backend
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://localhost:5173",
   "https://main.d3b9nx7tb3jlu.amplifyapp.com",
 ];
 
@@ -107,6 +108,22 @@ async function getUserByEmail(email) {
      WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
      LIMIT 1`,
     [email],
+  );
+  return result.rows[0] || null;
+}
+
+//product getter
+async function getItems() {
+  const result = await pool.query(
+    `SELECT * FROM items`
+  );
+  return result.rows;
+}
+
+async function getItemById(id) {
+  const result = await pool.query(
+    `SELECT * FROM items WHERE id = $1 LIMIT 1`,
+    [id]
   );
   return result.rows[0] || null;
 }
@@ -417,6 +434,30 @@ app.get("/login", (_req, res) => {
 });
 app.get("/signup", (_req, res) => {
   res.sendFile(path.join(projectRoot, "signup.html"));
+});
+
+//PRODUCT STUFF
+app.get("/items", async (_req, res) => {
+  try {
+    const items = await getItems();
+    res.json(items);
+  } catch (err) {
+    console.error("Error fetching items:", err);
+    res.status(500).json({ error: "Failed to fetch items." });
+  }
+});
+
+app.get("/items/:id", async (req, res) => {
+  try {
+    const item = await getItemById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "Item not found." });
+    }
+    res.json(item);
+  } catch (err) {
+    console.error("Error fetching item:", err);
+    res.status(500).json({ error: "Failed to fetch item." });
+  }
 });
 
 // Serve all static files (HTML, CSS, JS, images) from project root.
