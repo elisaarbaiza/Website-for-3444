@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Profile - Eagl'd</title>
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <script type="module" src="js/auth-guard.js" data-protect-page></script>
+
+  <nav class="custom-navbar navbar navbar-expand-md navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="main.html">Eagl'd<span>.</span></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsFurni" aria-controls="navbarsFurni" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarsFurni">
+        <ul class="custom-navbar-nav navbar-nav ms-auto mb-2 mb-md-0">
+          <li><a class="nav-link" href="main.html">Home</a></li>
+          <li><a class="nav-link" href="shop.html">Shop</a></li>
+          <li><a class="nav-link" href="favorites.html">Favorites</a></li>
+          <li><a class="nav-link" href="sell.html">Sell</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container" style="max-width: 650px; margin-top: 60px;">
+    <h2 class="mb-3">My Profile</h2>
+    <div class="card">
+      <div class="card-body">
+        <p class="mb-2"><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
+        <p class="mb-4"><strong>User ID:</strong> <span id="profileUid">Loading...</span></p>
+        <button id="logoutBtn" class="btn btn-danger">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, onAuthStateChanged, signOut } from "./js/firebase-auth.js";
+
+    const emailEl = document.getElementById("profileEmail");
+    const uidEl = document.getElementById("profileUid");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) return;
+      emailEl.textContent = user.email || "No email available";
+      uidEl.textContent = user.uid;
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+  </script>
+
+  <script src="js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

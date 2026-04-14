@@ -2,17 +2,39 @@
   "name": "test-webiste-for-3444",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "main": "backend/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node backend/server.js"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1013.0",
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "latest",
     "express-session": "^1.19.0",
+    "firebase": "^12.11.0",
     "nodemailer": "^8.0.1",
     "pg": "^8.20.0",
     "socket.io": "latest"
+  },
+  "description": "https://main.d3b9nx7tb3jlu.amplifyapp.com/main.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elisaarbaiza/Test-Webiste-for-3444.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/elisaarbaiza/Test-Webiste-for-3444/issues"
+  },
+  "homepage": "https://github.com/elisaarbaiza/Test-Webiste-for-3444#readme",
+  "devDependencies": {
+    "css-loader": "^7.1.4",
+    "html-webpack-plugin": "^5.6.6",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2"
   }
 }

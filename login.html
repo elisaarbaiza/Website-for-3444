@@ -10,13 +10,13 @@
 <body>
   <nav class="custom-navbar navbar navbar-expand-md navbar-dark bg-dark">
     <div class="container">
-      <a class="navbar-brand" href="index.html">Eagl'd<span>.</span></a>
+      <a class="navbar-brand" href="main.html">Eagl'd<span>.</span></a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsFurni" aria-controls="navbarsFurni" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarsFurni">
         	<ul class="custom-navbar-nav navbar-nav ms-auto mb-2 mb-md-0">
-						<li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+						<li class="nav-item"><a class="nav-link" href="main.html">Home</a></li>
 						<li><a class="nav-link" href="shop.html">Shop</a></li>
 						<li><a class="nav-link" href="favorites.html">Favorites</a></li>
 						<li><a class="nav-link" href="sell.html">Sell</a></li>
@@ -51,62 +51,69 @@
     </p>
   </div>
 
-  <script>
-    const ACCOUNTS_KEY = 'eagld_demo_accounts';
-    const DEMO_USER_ID = '1';
+  <script type="module">
+    import {
+      auth,
+      signInWithEmailAndPassword,
+      sendEmailVerification,
+      signOut,
+      setPersistence,
+      browserLocalPersistence,
+      browserSessionPersistence
+    } from "./js/firebase-auth.js";
 
-    function getAccounts() {
-      try {
-        return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '{}');
-      } catch (_err) {
-        return {};
-      }
+    const ALLOWED_NEXT_PAGES = new Set([
+      "shop.html",
+      "favorites.html",
+      "checkout.html",
+      "cart.html",
+      "sell.html",
+      "message.html"
+    ]);
+
+    function getPostLoginTarget() {
+      const nextParam = new URLSearchParams(window.location.search).get("next");
+      if (!nextParam) return "main.html";
+      return ALLOWED_NEXT_PAGES.has(nextParam) ? nextParam : "main.html";
     }
 
-    const loginForm = document.getElementById('loginForm');
-    const loginAlert = document.getElementById('loginAlert');
+    const loginForm = document.getElementById("loginForm");
+    const loginAlert = document.getElementById("loginAlert");
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      loginAlert.className = 'alert d-none';
-      loginAlert.textContent = '';
+      loginAlert.className = "alert d-none";
+      loginAlert.textContent = "";
 
-      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-      const password = document.getElementById('loginPassword').value;
-      const rememberMe = document.getElementById('rememberMe').checked;
-      const accounts = getAccounts();
-      const account = accounts[email];
+      const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+      const password = document.getElementById("loginPassword").value;
+      const rememberMe = document.getElementById("rememberMe").checked;
 
-      if (!account || account.password !== password) {
-        loginAlert.className = 'alert alert-danger';
-        loginAlert.textContent = 'Invalid email or password.';
-        return;
+      try {
+        await setPersistence(
+          auth,
+          rememberMe ? browserLocalPersistence : browserSessionPersistence
+        );
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        if (!credential.user.emailVerified) {
+          await sendEmailVerification(credential.user);
+          await signOut(auth);
+          loginAlert.className = "alert alert-warning";
+          loginAlert.textContent = "Please verify your UNT email first. We sent a new verification email.";
+          return;
+        }
+        loginAlert.className = "alert alert-success";
+        loginAlert.textContent = "Logged in successfully. Redirecting...";
+        setTimeout(() => {
+          window.location.href = getPostLoginTarget();
+        }, 700);
+      } catch (err) {
+        loginAlert.className = "alert alert-danger";
+        loginAlert.textContent = err?.message || "Invalid email or password.";
       }
-
-      // Demo auth only: unlocks feature gating that relies on localStorage user_id.
-      localStorage.setItem('user_id', DEMO_USER_ID);
-      localStorage.setItem('user_email', email);
-      if (rememberMe) {
-        localStorage.setItem('remember_me_email', email);
-      } else {
-        localStorage.removeItem('remember_me_email');
-      }
-
-      loginAlert.className = 'alert alert-success';
-      loginAlert.textContent = 'Logged in successfully. Redirecting...';
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 700);
     });
-
-    const rememberedEmail = localStorage.getItem('remember_me_email');
-    if (rememberedEmail) {
-      document.getElementById('loginEmail').value = rememberedEmail;
-      document.getElementById('rememberMe').checked = true;
-    }
   </script>
 
   <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-

@@ -15,6 +15,24 @@ router.get('/', async (_req, res) => {
   }
 });
 
+// Get Seller Products
+router.get('/seller/:seller_id', async (req, res) => {
+  try {
+    const { seller_id } = req.params;
+
+    const result = await pool.query(
+      `SELECT * FROM products WHERE seller_id = $1 ORDER BY created_at DESC`,
+      [seller_id]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get Single Product
 router.get('/:id', async (req, res) => {
   try {
@@ -44,24 +62,6 @@ router.post('/', async (req, res) => {
     );
 
     res.status(201).json(newProduct.rows[0]);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get Seller Products
-router.get('/seller/:seller_id', async (req, res) => {
-  try {
-    const { seller_id } = req.params;
-
-    const result = await pool.query(
-      `SELECT * FROM products WHERE seller_id = $1 ORDER BY created_at DESC`,
-      [seller_id]
-    );
-
-    res.json(result.rows);
 
   } catch (err) {
     console.error(err);
