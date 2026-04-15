@@ -83,8 +83,7 @@ function Shop() {
           items.map((item) => (
             <div className="col-12 col-md-4 col-lg-3 mb-5" key={item.id}>
               <Link className="product-item" to={`/product/${item.id}`}>
-                {/* Using a placeholder image since image_url is not in the database schema yet */}
-                <img src="books.png" className="img-fluid product-thumbnail" alt={item.title} />
+                <img src={item.image_url || "books.png"} className="img-fluid product-thumbnail" alt={item.title} />
                 <h3 className="product-title">{item.title}</h3>
                 <strong className="product-price">${Number(item.price).toFixed(2)}</strong>
               </Link>

@@ -6,8 +6,27 @@ function Product() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/me", {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        }
+      } catch (err) {
+        // Not logged in, which is fine. The favorite button just won't show.
+      }
+    };
+
+    fetchUser();
+
     // Matches the port used in shop.jsx (5000)
     fetch(`http://localhost:5000/items/${id}`)
       .then((res) => {
@@ -23,6 +42,40 @@ function Product() {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    if (user && item) {
+      setIsFavorite(user.favorite_items?.includes(item.id));
+    }
+  }, [user, item]);
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      setError("You must be logged in to manage favorites.");
+      return;
+    }
+    setFavoriteLoading(true);
+    setError(null);
+
+    const method = isFavorite ? "DELETE" : "POST";
+    try {
+      const res = await fetch(`http://localhost:5000/api/favorites/${item.id}`, {
+        method,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Could not update favorites.");
+      }
+      // Toggle state on success and update user object
+      setIsFavorite(!isFavorite);
+      setUser(prevUser => ({ ...prevUser, favorite_items: isFavorite ? prevUser.favorite_items.filter(favId => favId !== item.id) : [...prevUser.favorite_items, item.id] }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   return (
     <>
@@ -52,7 +105,7 @@ function Product() {
             <div className="row">
               <div className="col-md-6 mb-4">
                 {/* Placeholder image, consistent with shop.jsx */ }
-                <img src="/books.png" className="img-fluid rounded product-thumbnail" alt={item.title} />
+                <img src={item.image_url || "books.png"} className="img-fluid product-thumbnail" alt={item.title} />
               </div>
               <div className="col-md-6">
                 <h2 className="display-5 text-black mb-3">{item.title}</h2>
@@ -60,6 +113,11 @@ function Product() {
                 {item.category && <p className="text-muted mb-4"><strong>Category:</strong> {item.category}</p>}
                 <p className="lead">{item.description || "No description provided."}</p>
                 <button className="btn btn-primary mt-4">Contact Seller</button>
+                {user && (
+                  <button className={`btn ${isFavorite ? 'btn-success' : 'btn-outline-success'} mt-4 ms-2`} onClick={handleFavoriteToggle} disabled={favoriteLoading}>
+                    {isFavorite ? '★ Favorited' : '☆ Add to Favorites'}
+                  </button>
+                )}
               </div>
             </div>
           )}

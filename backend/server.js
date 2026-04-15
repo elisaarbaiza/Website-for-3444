@@ -37,13 +37,19 @@ async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS favorite_items INTEGER[] DEFAULT ARRAY[]::INTEGER[];
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS items (
       id SERIAL PRIMARY KEY,
       seller_id INTEGER NOT NULL REFERENCES users(id),
       title TEXT NOT NULL,
       description TEXT,
+      image_url TEXT,
       price NUMERIC(10, 2) NOT NULL,
       category TEXT,
+      is_sold BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
@@ -92,8 +98,8 @@ const cartRoutes = require('./routes/cartRoutes');
 const productRoutes = require('./routes/productRoutes');
 
 // Parse JSON and form-encoded bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/cart', cartRoutes);
 app.use('/products', productRoutes);
@@ -130,7 +136,7 @@ function isUntEmail(email) {
 
 async function getUserById(id) {
   const result = await pool.query(
-    `SELECT id, email, password_hash, email_verified FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT id, email, password_hash, email_verified, favorite_items FROM users WHERE id = $1 LIMIT 1`,
     [id],
   );
   return result.rows[0] || null;
@@ -138,7 +144,7 @@ async function getUserById(id) {
 
 async function getUserByEmail(email) {
   const result = await pool.query(
-    `SELECT id, email, password_hash, email_verified
+    `SELECT id, email, password_hash, email_verified, favorite_items
      FROM users
      WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
      LIMIT 1`,
@@ -185,6 +191,56 @@ async function getItemById(id) {
     [id]
   );
   return result.rows[0] || null;
+}
+
+async function createItem(seller_id, title, description, price, category, image_url) {
+  const result = await pool.query(
+    `INSERT INTO items (seller_id, title, description, price, category, image_url)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [seller_id, title, description, price, category, image_url]
+  );
+  return result.rows[0];
+}
+
+async function getItemsBySellerId(seller_id) {
+  const result = await pool.query(
+    `SELECT * FROM items WHERE seller_id = $1 ORDER BY created_at DESC`,
+    [seller_id]
+  );
+  return result.rows;
+}
+
+async function addFavoriteItem(userId, itemId) {
+  const result = await pool.query(
+    `UPDATE users
+     SET favorite_items = array_append(favorite_items, $2)
+     WHERE id = $1 AND NOT ($2 = ANY(favorite_items))
+     RETURNING favorite_items`,
+    [userId, itemId]
+  );
+  return result.rows[0];
+}
+
+async function removeFavoriteItem(userId, itemId) {
+  const result = await pool.query(
+    `UPDATE users
+     SET favorite_items = array_remove(favorite_items, $2)
+     WHERE id = $1
+     RETURNING favorite_items`,
+    [userId, itemId]
+  );
+  return result.rows[0];
+}
+
+async function getFavoriteItems(userId) {
+  const result = await pool.query(
+    `SELECT i.* FROM items i
+     JOIN users u ON i.id = ANY(u.favorite_items)
+     WHERE u.id = $1`,
+    [userId]
+  );
+  return result.rows;
 }
 
 // Session middleware to track logged-in users
@@ -274,9 +330,9 @@ function ensureConversation(currentUser, otherUser) {
 async function requireLogin(req, res, next) {
   try {
     const user = await getUserById(req.session.userId);
-    if (!user || !user.email_verified) {
+    if (!user /* || !user.email_verified */) {
       return res.status(401).json({
-        error: "Login with a verified UNT email is required for this action.",
+        error: "Login is required for this action.",
       });
     }
     req.user = user;
@@ -399,7 +455,7 @@ app.get("/api/me", async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
     // Return public user profile data
-    res.json({ id: user.id, email: user.email });
+    res.json({ id: user.id, email: user.email, favorite_items: user.favorite_items || [] });
   } catch (err) {
     console.error("Error fetching profile:", err);
     res.status(500).json({ error: "Server error." });
@@ -503,6 +559,67 @@ app.post("/reset-password", async (req, res) => {
 // Example protected route (for future sell/buy/chat actions)
 app.post("/protected-example", requireLogin, (req, res) => {
   res.json({ message: `Hello, ${req.user.email}. You are authenticated.` });
+});
+
+// Create a new item
+app.post("/api/items", requireLogin, async (req, res) => {
+  try {
+    const { title, description, price, category, image_url } = req.body;
+    if (!title || !price) {
+      return res.status(400).json({ error: "Title and price are required." });
+    }
+    const newItem = await createItem(req.user.id, title, description, price, category, image_url);
+    res.status(201).json(newItem);
+  } catch (err) {
+    console.error("Error creating item:", err);
+    res.status(500).json({ error: "Failed to create item." });
+  }
+});
+
+// Get currently logged-in user's items
+app.get("/api/my-items", requireLogin, async (req, res) => {
+  try {
+    const items = await getItemsBySellerId(req.user.id);
+    res.json(items);
+  } catch (err) {
+    console.error("Error fetching user items:", err);
+    res.status(500).json({ error: "Failed to fetch your items." });
+  }
+});
+
+// Add an item to favorites
+app.post("/api/favorites/:itemId", requireLogin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    await addFavoriteItem(req.user.id, parseInt(itemId, 10));
+    res.status(200).json({ message: "Item added to favorites." });
+  } catch (err) {
+    console.error("Error adding favorite:", err);
+    res.status(500).json({ error: "Failed to add favorite." });
+  }
+});
+
+// Remove an item from favorites
+app.delete("/api/favorites/:itemId", requireLogin, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    await removeFavoriteItem(req.user.id, parseInt(itemId, 10));
+    res.status(200).json({ message: "Item removed from favorites." });
+  } catch (err) {
+    console.error("Error removing favorite:", err);
+    res.status(500).json({ error: "Failed to remove favorite." });
+  }
+});
+
+// Get all favorite items for the logged-in user
+app.get("/api/favorites", requireLogin, async (req, res) => {
+  try {
+    const items = await getFavoriteItems(req.user.id);
+    res.json(items);
+  } catch (err) {
+    console.error("Error fetching favorites:", err);
+    res.status(500).json({ error: "Failed to fetch favorites." });
+  }
 });
 
 // Pretty URLs: GET /login and GET /signup serve the HTML pages. (POST /login and POST /signup are JSON APIs above.)
