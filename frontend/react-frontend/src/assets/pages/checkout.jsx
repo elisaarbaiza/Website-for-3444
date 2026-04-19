@@ -14,7 +14,6 @@ const PAYMENT_METHODS = [
   { value: "other", label: "Other:" },
 ];
 
-// Helper: today's date in YYYY-MM-DD format for the min date attribute
 const todayStr = new Date().toISOString().split("T")[0];
 
 export default function Checkout() {
@@ -38,20 +37,6 @@ export default function Checkout() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    // ---------------------------------------------------------------------------
-    // CART INTEGRATION
-    // Currently reads from localStorage under the key "eagld_cart".
-    // Your cart page should save items there like:
-    //   localStorage.setItem("eagld_cart", JSON.stringify([
-    //     { id: 1, name: "Top Up T-Shirt", quantity: 1, price: 250.00 },
-    //     ...
-    //   ]));
-    //
-    // When your teammate's backend is ready, swap this block for an API call:
-    //   const res = await fetch("/api/cart");
-    //   const data = await res.json();
-    //   setOrderItems(data.items);
-    // ---------------------------------------------------------------------------
     try {
       const stored = localStorage.getItem("eagld_cart");
       const parsed = stored ? JSON.parse(stored) : [];
@@ -102,19 +87,8 @@ export default function Checkout() {
 
     setLoading(true);
     try {
-      // TODO: Replace with your real API endpoint
-      // const res = await fetch("/api/orders", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ ...form, items: orderItems }),
-      // });
-      // if (!res.ok) throw new Error("Order failed");
-      // const data = await res.json();
-
-      // Simulate success for now
       await new Promise((r) => setTimeout(r, 800));
       setSubmitted(true);
-      // Navigate to thank-you page: window.location.href = "/thankyou";
     } catch (err) {
       alert("Something went wrong placing your order. Please try again.");
     } finally {
@@ -146,22 +120,18 @@ export default function Checkout() {
 
   return (
     <div style={styles.page}>
-      {/* Hero */}
       <div style={styles.hero}>
         <div style={styles.heroInner}>
           <h1 style={styles.heroTitle}>Checkout</h1>
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={styles.container}>
         <form onSubmit={handleSubmit} noValidate>
           <div style={styles.grid}>
-            {/* LEFT: Billing Details */}
             <div>
               <h2 style={styles.sectionTitle}>Billing Details</h2>
               <div style={styles.card}>
-                {/* Name Row */}
                 <div style={styles.row}>
                   <Field label="First Name" required error={errors.firstName}>
                     <input
@@ -183,7 +153,6 @@ export default function Checkout() {
                   </Field>
                 </div>
 
-                {/* Email / Phone Row */}
                 <div style={styles.row}>
                   <Field label="Email Address" required error={errors.email}>
                     <input
@@ -206,7 +175,6 @@ export default function Checkout() {
                   </Field>
                 </div>
 
-                {/* Meet-Up Location */}
                 <Field
                   label="Select Your Meet-Up Location"
                   required
@@ -226,7 +194,6 @@ export default function Checkout() {
                   </select>
                 </Field>
 
-                {/* Meet-Up Date & Time */}
                 <div style={styles.row}>
                   <Field label="Preferred Meet-Up Date" required error={errors.meetupDate}>
                     <input
@@ -249,7 +216,6 @@ export default function Checkout() {
                   </Field>
                 </div>
 
-                {/* Order Notes */}
                 <Field label="Order Notes">
                   <textarea
                     style={{ ...inputStyle(), height: 100, resize: "vertical" }}
@@ -262,7 +228,6 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* RIGHT: Order Summary */}
             <div>
               <h2 style={styles.sectionTitle}>Your Order</h2>
               <div style={styles.card}>
@@ -317,7 +282,6 @@ export default function Checkout() {
                   </tbody>
                 </table>
 
-                {/* Payment Method */}
                 <div style={styles.paymentBox}>
                   <h3 style={styles.paymentTitle}>Select Payment Method</h3>
                   {errors.paymentMethod && (
@@ -372,8 +336,6 @@ export default function Checkout() {
   );
 }
 
-// --- Sub-components ---
-
 function Field({ label, required, error, children }) {
   return (
     <div style={{ marginBottom: 16, flex: 1 }}>
@@ -386,8 +348,6 @@ function Field({ label, required, error, children }) {
     </div>
   );
 }
-
-// --- Styles ---
 
 const inputBase = {
   width: "100%",
