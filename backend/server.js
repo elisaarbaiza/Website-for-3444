@@ -47,6 +47,17 @@ async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+  `);
+  // Older DBs have a "password" column with NOT NULL — make it nullable so it
+  // doesn't block inserts that only use password_hash.
+  await pool.query(`
+    ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
+  `).catch(() => {});
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+  `);
+  await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS favorite_items INTEGER[] DEFAULT ARRAY[]::INTEGER[];
   `);
   await pool.query(`
@@ -70,6 +81,32 @@ async function initDb() {
       category TEXT,
       is_sold BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS image_url TEXT;`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS is_sold BOOLEAN DEFAULT FALSE;`);
+
+  // Fix cart table column names if created with old schema
+  await pool.query(`
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cart' AND column_name='product_id') THEN
+        ALTER TABLE cart RENAME COLUMN product_id TO item_id;
+      END IF;
+    END $$;
+  `).catch(() => {});
+  await pool.query(`ALTER TABLE cart ADD COLUMN IF NOT EXISTS item_id INTEGER REFERENCES items(id) ON DELETE CASCADE;`).catch(() => {});
+  await pool.query(`ALTER TABLE cart ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;`).catch(() => {});
+  await pool.query(`ALTER TABLE cart ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;`).catch(() => {});
+  await pool.query(`ALTER TABLE cart ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();`).catch(() => {});
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cart (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, item_id)
     );
   `);
 
@@ -886,6 +923,81 @@ app.delete("/api/items/:id", requireLogin, async (req, res) => {
   } catch (err) {
     console.error("Error deleting item:", err);
     res.status(500).json({ error: "Failed to delete item." });
+  }
+});
+
+// Get cart items for logged-in user
+app.get("/api/cart", requireLogin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.quantity, c.item_id,
+              i.title, i.image_url, i.price
+       FROM cart c
+       JOIN items i ON c.item_id = i.id
+       WHERE c.user_id = $1
+       ORDER BY c.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching cart:", err);
+    res.status(500).json({ error: "Failed to fetch cart." });
+  }
+});
+
+// Add item to cart (or increment quantity if already in cart)
+app.post("/api/cart", requireLogin, async (req, res) => {
+  try {
+    const { item_id, quantity = 1 } = req.body;
+    const existing = await pool.query(
+      `SELECT id, quantity FROM cart WHERE user_id = $1 AND item_id = $2`,
+      [req.user.id, item_id]
+    );
+    if (existing.rows.length > 0) {
+      const updated = await pool.query(
+        `UPDATE cart SET quantity = quantity + $1
+         WHERE user_id = $2 AND item_id = $3 RETURNING *`,
+        [quantity, req.user.id, item_id]
+      );
+      return res.json(updated.rows[0]);
+    }
+    const result = await pool.query(
+      `INSERT INTO cart (user_id, item_id, quantity) VALUES ($1, $2, $3) RETURNING *`,
+      [req.user.id, item_id, quantity]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("Error adding to cart:", err.message, err.detail || "");
+    res.status(500).json({ error: err.message || "Failed to add item to cart." });
+  }
+});
+
+// Update quantity of a cart item
+app.put("/api/cart/:id", requireLogin, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    const result = await pool.query(
+      `UPDATE cart SET quantity = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
+      [quantity, req.params.id, req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error updating cart:", err);
+    res.status(500).json({ error: "Failed to update cart." });
+  }
+});
+
+// Remove item from cart
+app.delete("/api/cart/:id", requireLogin, async (req, res) => {
+  try {
+    await pool.query(
+      `DELETE FROM cart WHERE id = $1 AND user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    res.json({ message: "Item removed from cart." });
+  } catch (err) {
+    console.error("Error removing from cart:", err);
+    res.status(500).json({ error: "Failed to remove item from cart." });
   }
 });
 

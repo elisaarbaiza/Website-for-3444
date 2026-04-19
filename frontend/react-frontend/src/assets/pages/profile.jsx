@@ -12,7 +12,7 @@ function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/me", {
+        const res = await fetch("/api/me", {
           credentials: "include" // Important to send the session cookie
         });
         if (!res.ok) {
@@ -32,7 +32,7 @@ function Profile() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/logout", {
+      await fetch("/logout", {
         method: "POST",
         credentials: "include"
       });
@@ -49,7 +49,7 @@ function Profile() {
       setSaveMessage("");
       setError("");
 
-      const res = await fetch("http://localhost:5000/api/me", {
+      const res = await fetch("/api/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

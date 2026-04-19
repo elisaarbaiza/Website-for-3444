@@ -10,7 +10,7 @@ function Shop() {
   const [filter, setFilter] = useState(new URLSearchParams(location.search).get("category") || "");
 
   useEffect(() => {
-    let url = "http://localhost:5000/items";
+    let url = "/items";
     if (filter === "asc" || filter === "desc") {
       url += `?sort=${filter}`;
     } else if (filter) {

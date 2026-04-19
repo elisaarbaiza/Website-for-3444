@@ -14,10 +14,10 @@ function Favorites() {
     const fetchPageData = async () => {
       try {
         const [userRes, favoritesRes] = await Promise.all([
-          fetch("http://localhost:5000/api/me", {
+          fetch("/api/me", {
             credentials: "include",
           }),
-          fetch("http://localhost:5000/api/favorites", {
+          fetch("/api/favorites", {
             credentials: "include"
           }),
         ]);
@@ -61,7 +61,7 @@ function Favorites() {
     setError(null);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/favorites/${itemId}`, {
+      const res = await fetch(`/api/favorites/${itemId}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -89,7 +89,7 @@ function Favorites() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:5000/cart", {
+      const res = await fetch("/cart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

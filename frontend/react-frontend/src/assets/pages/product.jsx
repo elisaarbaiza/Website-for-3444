@@ -9,11 +9,13 @@ function Product() {
   const [user, setUser] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [cartMsg, setCartMsg] = useState("");
+  const [cartError, setCartError] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/me", {
+        const res = await fetch("/api/me", {
           credentials: "include",
         });
         if (res.ok) {
@@ -28,9 +30,9 @@ function Product() {
     fetchUser();
 
     // Matches the port used in shop.jsx (5000)
-    fetch(`http://localhost:5000/items/${id}`)
+    fetch(`/items/${id}`)
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch product details");
+        if (!res.ok) throw new Error(`Failed to fetch product (status ${res.status})`);
         return res.json();
       })
       .then((data) => {
@@ -59,7 +61,7 @@ function Product() {
 
     const method = isFavorite ? "DELETE" : "POST";
     try {
-      const res = await fetch(`http://localhost:5000/api/favorites/${item.id}`, {
+      const res = await fetch(`/api/favorites/${item.id}`, {
         method,
         credentials: "include",
       });
@@ -113,9 +115,40 @@ function Product() {
                 {item.category && <p className="text-muted mb-2"><strong>Category:</strong> {item.category}</p>}
                 <p className="text-muted mb-4"><strong>Seller:</strong> {item.seller_username || "Unknown"}</p>
                 <p className="lead">{item.description || "No description provided."}</p>
+                {cartMsg && <div className="alert alert-success py-1 mt-3">{cartMsg}</div>}
+                {cartError && <div className="alert alert-danger py-1 mt-3">{cartError}</div>}
+                {user && (
+                  <button
+                    className="btn btn-primary mt-4"
+                    onClick={async () => {
+                      setCartError("");
+                      setCartMsg("");
+                      try {
+                        const res = await fetch("/api/cart", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ item_id: item.id, quantity: 1 }),
+                        });
+                        const data = await res.json();
+                        if (res.status === 401) {
+                          setCartError("Please log in to add items to your cart.");
+                          return;
+                        }
+                        if (!res.ok) throw new Error(data.error || "Failed to add to cart.");
+                        setCartMsg("Added to cart!");
+                        setTimeout(() => setCartMsg(""), 2500);
+                      } catch (err) {
+                        setCartError(err.message);
+                      }
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+                )}
                 <Link
                   to={`/messages?sellerId=${item.seller_id}`}
-                  className="btn btn-primary mt-4"
+                  className="btn btn-outline-secondary mt-4 ms-2"
                 >
                   Contact Seller
                 </Link>

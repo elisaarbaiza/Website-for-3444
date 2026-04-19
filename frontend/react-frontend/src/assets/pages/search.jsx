@@ -14,7 +14,7 @@ function Search() {
   const searchTerm = query.get("q") || "";
 
   useEffect(() => {
-    let url = `http://localhost:5000/items?search=${encodeURIComponent(searchTerm)}`;
+    let url = `/items?search=${encodeURIComponent(searchTerm)}`;
 
     fetch(url)
       .then((res) => {

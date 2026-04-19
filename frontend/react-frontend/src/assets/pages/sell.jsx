@@ -20,7 +20,7 @@ function Sell() {
 
   const fetchMyListings = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/my-items", {
+      const res = await fetch("/api/my-items", {
         credentials: "include"
       });
       if (!res.ok) throw new Error("Failed to fetch listings. Make sure you are logged in.");
@@ -57,7 +57,7 @@ function Sell() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/items", {
+      const res = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, price, category, image_url: imageUrl }),
@@ -105,7 +105,7 @@ function Sell() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`http://localhost:5000/api/items/${id}`, {
+      const res = await fetch(`/api/items/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -133,7 +133,7 @@ function Sell() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`http://localhost:5000/api/items/${id}/mark-sold`, {
+      const res = await fetch(`/api/items/${id}/mark-sold`, {
         method: "PUT",
         credentials: "include",
       });
@@ -152,7 +152,7 @@ function Sell() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`http://localhost:5000/api/items/${id}`, {
+      const res = await fetch(`/api/items/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
