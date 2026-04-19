@@ -16,7 +16,8 @@
     "firebase": "^12.11.0",
     "nodemailer": "^8.0.1",
     "pg": "^8.20.0",
-    "socket.io": "latest"
+    "socket.io": "latest",
+    "socket.io-client": "^4.8.3"
   },
   "description": "https://main.d3b9nx7tb3jlu.amplifyapp.com/main.html",
   "repository": {

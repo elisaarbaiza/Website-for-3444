@@ -13,6 +13,16 @@ const { Pool } = require("pg");
 const app = express();
 const server = http.createServer(app);
 const projectRoot = path.join(__dirname, "..");
+const sessionMiddleware = session({
+  secret: "change-this-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    // Allow cross-site cookies when served over HTTPS (for Amplify + backend on Render)
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+  },
+});
 
 // Postgres connection pool (for future persistence)
 // Use DATABASE_SSL=true when connecting locally to hosted databases like Render Postgres.
@@ -290,18 +300,7 @@ async function getFavoriteItems(userId) {
 }
 
 // Session middleware to track logged-in users
-app.use(
-  session({
-    secret: "change-this-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      // Allow cross-site cookies when served over HTTPS (for Amplify + backend on Render)
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
-    },
-  }),
-);
+app.use(sessionMiddleware);
 
 // Optional dev-only auto-login shortcut.
 // Enable by starting server with: SKIP_AUTH_FOR_DEV=true node backend/server.js
@@ -338,13 +337,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Allow Socket.IO connections from any origin (Amplify, Render, localhost)
+// Allow Socket.IO connections from localhost/allowed origins
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
+io.engine.use(sessionMiddleware);
 
 // In-memory conversation store (per pair of users)
 // NOTE: This is not permanent storage; data is lost if the server restarts.
@@ -370,6 +371,40 @@ function ensureConversation(currentUser, otherUser) {
     });
   }
   return conversations.get(id);
+}
+
+async function listChatContactsForUser(userId) {
+  const contactIds = new Set();
+  for (const convo of conversations.values()) {
+    const participants = (convo.participants || []).map((value) => Number(value));
+    if (!participants.includes(userId)) continue;
+    const otherId = participants.find((id) => id !== userId);
+    if (Number.isInteger(otherId)) {
+      contactIds.add(otherId);
+    }
+  }
+
+  if (contactIds.size === 0) {
+    return [];
+  }
+
+  const ids = [...contactIds];
+  const result = await pool.query(
+    `SELECT
+       u.id,
+       u.email,
+       u.username,
+       u.bio,
+       CASE
+         WHEN EXISTS (SELECT 1 FROM items i WHERE i.seller_id = u.id) THEN 'seller'
+         ELSE 'buyer'
+       END AS role
+     FROM users u
+     WHERE u.id = ANY($1::int[])
+     ORDER BY COALESCE(NULLIF(u.username, ''), SPLIT_PART(u.email, '@', 1)) ASC`,
+    [ids]
+  );
+  return result.rows;
 }
 
 // Authentication helpers
@@ -559,6 +594,100 @@ app.put("/api/me", requireLogin, async (req, res) => {
     console.error("Error updating profile:", err);
     res.status(500).json({ error: "Failed to update profile." });
   }
+});
+
+app.get("/api/chat/contacts", requireLogin, async (req, res) => {
+  try {
+    const contacts = await listChatContactsForUser(req.user.id);
+    const mapped = contacts.map((contact) => {
+      const convoId = getConversationId(req.user.id, contact.id);
+      const convo = conversations.get(convoId);
+      const lastMessage = convo?.messages?.[convo.messages.length - 1] || null;
+
+      return {
+        id: contact.id,
+        email: contact.email,
+        username: contact.username,
+        name: contact.username || String(contact.email || "").split("@")[0] || `user-${contact.id}`,
+        role: contact.role || "buyer",
+        bio: contact.bio,
+        lastMessage: lastMessage?.text || "",
+        lastMessageAt: lastMessage?.createdAt || null,
+      };
+    });
+
+    res.json(mapped);
+  } catch (err) {
+    console.error("Error fetching chat contacts:", err);
+    res.status(500).json({ error: "Failed to fetch contacts." });
+  }
+});
+
+app.get("/api/chat/conversations/:otherUserId", requireLogin, async (req, res) => {
+  const { otherUserId } = req.params;
+  const otherId = Number(otherUserId);
+
+  if (!Number.isInteger(otherId)) {
+    return res.status(400).json({ error: "Invalid user id." });
+  }
+
+  if (otherId === req.user.id) {
+    return res.status(400).json({ error: "Cannot open a conversation with yourself." });
+  }
+
+  const convo = ensureConversation(req.user.id, otherId);
+  if (!convo) {
+    return res.status(400).json({ error: "Invalid conversation." });
+  }
+
+  res.json({
+    conversationId: convo.id,
+    messages: convo.messages,
+  });
+});
+
+app.post("/api/chat/open/:otherUserId", requireLogin, async (req, res) => {
+  const { otherUserId } = req.params;
+  const otherId = Number(otherUserId);
+
+  if (!Number.isInteger(otherId)) {
+    return res.status(400).json({ error: "Invalid user id." });
+  }
+
+  if (otherId === req.user.id) {
+    return res.status(400).json({ error: "Cannot open a conversation with yourself." });
+  }
+
+  const otherUser = await getUserById(otherId);
+  if (!otherUser) {
+    return res.status(404).json({ error: "Seller not found." });
+  }
+
+  const convo = ensureConversation(req.user.id, otherId);
+  if (!convo) {
+    return res.status(400).json({ error: "Invalid conversation." });
+  }
+
+  const roleResult = await pool.query(
+    `SELECT CASE
+        WHEN EXISTS (SELECT 1 FROM items i WHERE i.seller_id = $1) THEN 'seller'
+        ELSE 'buyer'
+      END AS role`,
+    [otherId]
+  );
+
+  res.json({
+    conversationId: convo.id,
+    contact: {
+      id: otherUser.id,
+      email: otherUser.email,
+      username: otherUser.username,
+      name: otherUser.username || String(otherUser.email || "").split("@")[0] || `user-${otherUser.id}`,
+      role: roleResult.rows[0]?.role || "buyer",
+      bio: otherUser.bio || null,
+    },
+    messages: convo.messages,
+  });
 });
 
 // Email verification endpoint
@@ -834,45 +963,58 @@ app.use(express.static(projectRoot, { index: "main.html" }));
 
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
+  const sessionUserId = socket.request?.session?.userId;
+  const currentUserId = Number(sessionUserId);
+
+  if (!Number.isInteger(currentUserId)) {
+    socket.emit("chat error", { message: "Unauthorized socket session." });
+    socket.disconnect(true);
+    return;
+  }
+
+  socket.join(`user:${currentUserId}`);
 
   socket.on("join conversation", (payload) => {
-    const { currentUser, otherUser } = payload || {};
-    const convo = ensureConversation(currentUser, otherUser);
+    const { otherUserId } = payload || {};
+    const otherUser = Number(otherUserId);
+    const convo = ensureConversation(currentUserId, otherUser);
     if (!convo) {
       return;
     }
 
     socket.join(convo.id);
-    socket.data.currentUser = currentUser;
+    socket.data.currentUser = currentUserId;
     socket.data.currentConversationId = convo.id;
 
     socket.emit("conversation joined", {
       conversationId: convo.id,
-      otherUser,
+      otherUserId: otherUser,
       messages: convo.messages,
     });
   });
 
   socket.on("chat message", (data) => {
-    const { conversationId, user, text } = data || {};
-    if (!conversationId || !text || !user) return;
+    const { otherUserId, text } = data || {};
+    const otherUser = Number(otherUserId);
+    if (!text || !Number.isInteger(otherUser)) return;
 
-    const convo = conversations.get(conversationId);
+    const convo = ensureConversation(currentUserId, otherUser);
     if (!convo) return;
 
     const message = {
-      sender: user,
-      text,
-      createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(),
+      senderId: currentUserId,
+      receiverId: otherUser,
+      text: String(text).trim(),
+      createdAt: Date.now(),
     };
 
+    if (!message.text) return;
     convo.messages.push(message);
 
-    io.to(conversationId).emit("chat message", {
-      conversationId,
-      user: message.sender,
-      text: message.text,
-      createdAt: message.createdAt,
+    io.to(convo.id).emit("chat message", {
+      conversationId: convo.id,
+      message,
     });
   });
 

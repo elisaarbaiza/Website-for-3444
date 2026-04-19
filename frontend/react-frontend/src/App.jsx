@@ -9,6 +9,7 @@ import Favorites from './assets/pages/favorites.jsx';
 import Sell from './assets/pages/sell.jsx';
 import Product from './assets/pages/product.jsx';
 import Search from './assets/pages/search.jsx';
+import Messages from './assets/pages/messages.jsx';
 
 //user stuff
 import Login from './assets/pages/login.jsx';
@@ -30,6 +31,7 @@ function App() {
         <Route path="/sell" element={<Sell />} />
         <Route path="/product/:id" element={<Product />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/messages" element={<Messages />} />
 
         {/* user stuff */}
         <Route path="/login" element={<Login />} />

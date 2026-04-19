@@ -12,7 +12,10 @@ function Home() {
 							<div class="intro-excerpt">
 								<h1>Eagl'd</h1>
 								<p class="mb-4">Find quality products from other UNT students. </p>
-								<p><Link to="/shop" class="btn btn-secondary me-2">Shop Now</Link></p>
+								<p>
+									<Link to="/shop" class="btn btn-secondary me-2">Shop Now</Link>
+									<Link to="/messages" class="btn btn-white-outline">Messages</Link>
+								</p>
 							</div>
 						</div>
 						<div class="col-lg-7">
