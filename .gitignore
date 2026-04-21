@@ -5,3 +5,5 @@ yarn-error.log*
 .DS_Store
 .env
 
+.package-lock.json
+backend/node_modules/.package-lock.json
