@@ -590,6 +590,17 @@ app.get("/api/me", async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
+
+    let hasUnreadMessages = false;
+    for (const convo of conversations.values()) {
+      if (convo.participants.includes(user.id)) {
+        if (convo.messages.some((m) => m.receiverId === user.id && !m.isRead)) {
+          hasUnreadMessages = true;
+          break;
+        }
+      }
+    }
+
     // Return public user profile data
     res.json({
       id: user.id,
@@ -597,6 +608,7 @@ app.get("/api/me", async (req, res) => {
       username: user.username,
       bio: user.bio,
       favorite_items: user.favorite_items || [],
+      hasUnreadMessages
     });
   } catch (err) {
     console.error("Error fetching profile:", err);
@@ -677,6 +689,18 @@ app.get("/api/chat/conversations/:otherUserId", requireLogin, async (req, res) =
     return res.status(400).json({ error: "Invalid conversation." });
   }
 
+  let changed = false;
+  convo.messages.forEach((m) => {
+    if (m.receiverId === req.user.id && !m.isRead) {
+      m.isRead = true;
+      changed = true;
+    }
+  });
+  if (changed) {
+    // check if no more unread messages globally for user, then emit event
+    setTimeout(() => checkAndClearUnreadBadge(req.user.id), 0);
+  }
+
   res.json({
     conversationId: convo.id,
     messages: convo.messages,
@@ -703,6 +727,18 @@ app.post("/api/chat/open/:otherUserId", requireLogin, async (req, res) => {
   const convo = ensureConversation(req.user.id, otherId);
   if (!convo) {
     return res.status(400).json({ error: "Invalid conversation." });
+  }
+
+  let changed = false;
+  convo.messages.forEach((m) => {
+    if (m.receiverId === req.user.id && !m.isRead) {
+      m.isRead = true;
+      changed = true;
+    }
+  });
+  if (changed) {
+    // check if no more unread messages globally for user, then emit event
+    setTimeout(() => checkAndClearUnreadBadge(req.user.id), 0);
   }
 
   const roleResult = await pool.query(
@@ -1119,6 +1155,7 @@ io.on("connection", (socket) => {
       receiverId: otherUser,
       text: String(text).trim(),
       createdAt: Date.now(),
+      isRead: false,
     };
 
     if (!message.text) return;
@@ -1128,12 +1165,33 @@ io.on("connection", (socket) => {
       conversationId: convo.id,
       message,
     });
+    
+    // Notify the receiving user's personal room for the red badge
+    io.to(`user:${otherUser}`).emit("message notification", {
+      conversationId: convo.id,
+      message,
+    });
   });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
 });
+
+function checkAndClearUnreadBadge(userId) {
+  let hasUnread = false;
+  for (const c of conversations.values()) {
+    if (c.participants.includes(userId)) {
+      if (c.messages.some((msg) => msg.receiverId === userId && !msg.isRead)) {
+        hasUnread = true;
+        break;
+      }
+    }
+  }
+  if (!hasUnread && typeof io !== 'undefined') {
+    io.to(`user:${userId}`).emit("all messages read");
+  }
+}
 
 const PORT = process.env.PORT || 5000;
 const SKIP_DB_FOR_DEV = process.env.SKIP_DB_FOR_DEV === "true";
