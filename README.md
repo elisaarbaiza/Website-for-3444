@@ -1,7 +1,4 @@
 # Test-Webiste-for-3444
-https://main.d3b9nx7tb3jlu.amplifyapp.com/main.html
-
-
 
 ## HOW TO RUN ON MAC
 1. Ensure that on the postgres app, the server is running
